@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 import fnmatch
 
 SIZE_THRESHOLD = 50  # MB
-CACHE_URI = "s3://weights"  # either s3://bucket/path/ or gs://bucket/path
+CACHE_URI = "r2://weights"  # either s3://bucket/path/ or gs://bucket/path
 CDN = "https://weights.govpro.xyz"
 
 def parse_dockerignore(fileobj):
@@ -64,6 +64,9 @@ def make_manifest(manifest_filename: str = 'manifest.pget'):
     # Step 4: Copy files to cache
     if CACHE_URI.startswith('s3://'):
         cp_command = ['aws', 's3', 'cp']
+    elif CACHE_URI.startswith('r2://'):
+        cp_command = ['aws', 's3', 'cp', '--endpoint-url', 'https://3309f63723c6de8a36dab1a22068e3aa.r2.cloudflarestorage.com']
+        CACHE_URI = "s3://" + CACHE_URI[5:]
     elif CACHE_URI.startswith('gs://'):
         cp_command = ['gcloud', 'storage', 'cp']
     else:
