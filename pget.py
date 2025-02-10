@@ -77,7 +77,7 @@ def make_manifest(manifest_filename: str = 'manifest.pget'):
     for filepath, _ in tqdm(large_files, desc="Copying files to cache"):
         dest_path = os.path.join(bucket, filepath.lstrip('./'))
         if CACHE_URI.startswith('r2://'):
-            subprocess.run(cp_command + [filepath, dest_path, '--endpoint-url', 'https://3309f63723c6de8a36dab1a22068e3aa.r2.cloudflarestorage.com'], check=True)
+            subprocess.run(cp_command + [filepath, dest_path, '--endpoint-url', 'https://3309f63723c6de8a36dab1a22068e3aa.r2.cloudflarestorage.com'], capture_output=True, text=True, check=True)
         else:
             subprocess.run(cp_command + [filepath, dest_path], check=True)
 
