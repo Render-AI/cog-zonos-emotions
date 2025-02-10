@@ -14,7 +14,7 @@ class Predictor(BasePredictor):
 
   def predict(self, text: str = Input(description="Text to speak"), audio: Path = Input(description="Audio with voice to mimic")) -> Path:
     wav, sampling_rate = torchaudio.load(audio)
-    spk_embedding = self.model.embed_spk_audio(wav, sampling_rate)
+    spk_embedding = self.model.make_speaker_embedding(wav, sampling_rate)
 
     torch.manual_seed(421)
 
