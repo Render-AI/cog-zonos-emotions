@@ -10,7 +10,7 @@ class Predictor(BasePredictor):
 
   def setup(self):
     pget_manifest('manifest.pget')
-    self.model = Zonos.from_pretrained("Zyphra/Zonos-v0.1-transformer", device="cuda")
+    self.model = Zonos.from_local("./zonos-v0.1/config.json", "./zonos-v0.1/model.safetensors", device="cuda")
     self.model.bfloat16()
 
   def predict(self, text: str = Input(description="Text to speak"), audio: Path = Input(description="Audio with voice to mimic")) -> Path:
