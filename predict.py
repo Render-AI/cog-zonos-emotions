@@ -12,7 +12,7 @@ class Predictor(BasePredictor):
     self.model = Zonos.from_pretrained("Zyphra/Zonos-v0.1-transformer", device="cuda")
     self.model.bfloat16()
 
-  def predict(self, text: str = Input(description="Text to speak"), audio: Path = Input(description="Audio with voice to mimic")):
+  def predict(self, text: str = Input(description="Text to speak"), audio: Path = Input(description="Audio with voice to mimic")) -> Path:
     wav, sampling_rate = torchaudio.load(audio)
     spk_embedding = self.model.embed_spk_audio(wav, sampling_rate)
 
