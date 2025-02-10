@@ -1,6 +1,7 @@
 from cog import BasePredictor, Input, Path
 import torch
 import torchaudio
+from pget import pget_manifest
 from zonos.model import Zonos
 from zonos.conditioning import make_cond_dict
 
@@ -8,7 +9,7 @@ from zonos.conditioning import make_cond_dict
 class Predictor(BasePredictor):
 
   def setup(self):
-    """Load the model into memory"""
+    pget_manifest('manifest.pget')
     self.model = Zonos.from_pretrained("Zyphra/Zonos-v0.1-transformer", device="cuda")
     self.model.bfloat16()
 
