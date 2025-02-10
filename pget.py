@@ -66,7 +66,7 @@ def make_manifest(manifest_filename: str = 'manifest.pget'):
         cp_command = ['aws', 's3', 'cp']
         bucket = CACHE_URI
     elif CACHE_URI.startswith('r2://'):
-        cp_command = ['aws', 's3', 'cp', '--endpoint-url', 'https://3309f63723c6de8a36dab1a22068e3aa.r2.cloudflarestorage.com']
+        cp_command = ['aws', 's3', 'cp']
         bucket = "s3://" + CACHE_URI[5:]
     elif CACHE_URI.startswith('gs://'):
         cp_command = ['gcloud', 'storage', 'cp']
@@ -76,7 +76,10 @@ def make_manifest(manifest_filename: str = 'manifest.pget'):
 
     for filepath, _ in tqdm(large_files, desc="Copying files to cache"):
         dest_path = os.path.join(bucket, filepath.lstrip('./'))
-        subprocess.run(cp_command + [filepath, dest_path], check=True)
+        if CACHE_URI.startswith('r2://'):
+            subprocess.run(cp_command + [filepath, dest_path, '--endpoint-url', 'https://3309f63723c6de8a36dab1a22068e3aa.r2.cloudflarestorage.com'], check=True)
+        else:
+            subprocess.run(cp_command + [filepath, dest_path], check=True)
 
     # Step 5: Generate manifest file
     with open(manifest_filename, 'w') as f:
