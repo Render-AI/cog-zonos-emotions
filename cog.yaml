@@ -25,3 +25,4 @@ build:
   system_packages:
     - espeak-ng
 predict: predict.py:Predictor
+train: "train.py:train"
