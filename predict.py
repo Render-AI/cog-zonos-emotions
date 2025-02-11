@@ -15,8 +15,7 @@ class Predictor(BasePredictor):
     if weights is not None:
         # Get the actual URL from the URLFile object
         weights_url = weights.url if hasattr(weights, 'url') else str(weights)
-        pget_url(weights_url, "spk_embedding.pt")
-        with open("spk_embedding.pt", "rb") as f:
+        with open(weights_url, "rb") as f:
             self.speaker_embedding = torch.load(f)
     else:
         self.speaker_embedding = None
