@@ -12,5 +12,5 @@ def train(audio: Path = Input(description="Audio with voice to mimic")) -> Train
   model.bfloat16()
   wav, sampling_rate = torchaudio.load(audio)
   spk_embedding = model.make_speaker_embedding(wav, sampling_rate)
-  torch.save(spk_embedding, "spk_embedding.pt")g
+  torch.save(spk_embedding, "spk_embedding.pt")
   return TrainingOutput(weights=Path("spk_embedding.pt"))
