@@ -142,6 +142,9 @@ def make_manifest(manifest_filename: str = 'manifest.pget'):
             f.write(predictor_content)
         print(f"Updated {predictor_file} to include pget_manifest in setup method.")
 
+def pget_url(url: str, output_path: str):
+    return subprocess.check_call(["pget", url, output_path])
+
 def pget_manifest(manifest_filename: str='manifest.pget'):
     start = time.time()
     with open(manifest_filename, 'r') as f:

@@ -1,20 +1,22 @@
-from cog import BasePredictor, Input, Path
+from cog import BasePredictor, Input, Path, URLFile
 import torch
 import torchaudio
-from pget import pget_manifest
+from pget import pget_manifest, pget_url
 from zonos.model import Zonos
 from zonos.conditioning import make_cond_dict
 from typing import Optional
 
 class Predictor(BasePredictor):
 
-  def setup(self, weights: Optional[Path] = None):
+  def setup(self, weights: Optional[URLFile] = None):
     pget_manifest('manifest.pget')
     self.model = Zonos.from_local("./zonos-v0.1/config.json", "./zonos-v0.1/model.safetensors", device="cuda")
     self.model.bfloat16()
     if weights is not None and weights.name == "weights": weights = None; # fixme
     if weights:
-      with open(weights, "rb") as f:
+      # download weights using pget
+      pget_url(weights, "spk_embedding.pt")
+      with open("spk_embedding.pt", "rb") as f:
         self.speaker_embedding = torch.load(f)
     else:
       self.speaker_embedding = None
