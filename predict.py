@@ -13,9 +13,9 @@ class Predictor(BasePredictor):
     self.model = Zonos.from_local("./zonos-v0.1/config.json", "./zonos-v0.1/model.safetensors", device="cuda")
     self.model.bfloat16()
     if weights is not None:
-        # Convert weights Path to string for pget_url
-        weights_str = str(weights)
-        pget_url(weights_str, "spk_embedding.pt")
+        # Get the actual URL from the URLFile object
+        weights_url = weights.url if hasattr(weights, 'url') else str(weights)
+        pget_url(weights_url, "spk_embedding.pt")
         with open("spk_embedding.pt", "rb") as f:
             self.speaker_embedding = torch.load(f)
     else:
