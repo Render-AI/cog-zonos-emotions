@@ -22,8 +22,8 @@ class Predictor(BasePredictor):
         self.speaker_embedding = None
 
   def predict(self, text: str = Input(description="Text to speak!"), audio: Path = Input(description="(Optional) Audio with voice to mimic", default=None)) -> Path:
-    wav, sampling_rate = torchaudio.load(audio)
     if self.speaker_embedding is None:
+      wav, sampling_rate = torchaudio.load(audio)
       spk_embedding = self.model.make_speaker_embedding(wav, sampling_rate)
     else:
       spk_embedding = self.speaker_embedding
