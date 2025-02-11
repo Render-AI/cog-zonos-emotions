@@ -14,7 +14,8 @@ class Predictor(BasePredictor):
     self.model.bfloat16()
     if weights is not None and weights.name == "weights": weights = None; # fixme
     if weights:
-      self.speaker_embedding = torch.load(weights)
+      with open(weights, "rb") as f:
+        self.speaker_embedding = torch.load(f)
     else:
       self.speaker_embedding = None
 
