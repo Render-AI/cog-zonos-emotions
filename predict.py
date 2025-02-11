@@ -1,4 +1,4 @@
-from cog import BasePredictor, Input, Path, URLFile
+from cog import BasePredictor, Input, Path
 import torch
 import torchaudio
 from pget import pget_manifest, pget_url
@@ -8,7 +8,7 @@ from typing import Optional
 
 class Predictor(BasePredictor):
 
-  def setup(self, weights: Optional[URLFile] = None):
+  def setup(self, weights: Optional[Path] = None):
     pget_manifest('manifest.pget')
     self.model = Zonos.from_local("./zonos-v0.1/config.json", "./zonos-v0.1/model.safetensors", device="cuda")
     self.model.bfloat16()
