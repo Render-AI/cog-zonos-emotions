@@ -12,14 +12,14 @@ class Predictor(BasePredictor):
     pget_manifest('manifest.pget')
     self.model = Zonos.from_local("./zonos-v0.1/config.json", "./zonos-v0.1/model.safetensors", device="cuda")
     self.model.bfloat16()
-    if weights is not None and weights.name == "weights": weights = None; # fixme
-    if weights:
-      # download weights using pget
-      pget_url(weights, "spk_embedding.pt")
-      with open("spk_embedding.pt", "rb") as f:
-        self.speaker_embedding = torch.load(f)
+    if weights is not None:
+        # Convert weights Path to string for pget_url
+        weights_str = str(weights)
+        pget_url(weights_str, "spk_embedding.pt")
+        with open("spk_embedding.pt", "rb") as f:
+            self.speaker_embedding = torch.load(f)
     else:
-      self.speaker_embedding = None
+        self.speaker_embedding = None
 
   def predict(self, text: str = Input(description="Text to speak!"), audio: Path = Input(description="(Optional) Audio with voice to mimic", default=None)) -> Path:
     wav, sampling_rate = torchaudio.load(audio)
