@@ -16,6 +16,7 @@ build:
     - huggingface-hub>=0.28.1
     - gradio>=5.15.0
     - nltk==3.8.1
+    - pyaudio>=0.2.15
   python_version: "3.12"
   run:
     - curl -o /usr/local/bin/pget -L "https://github.com/replicate/pget/releases/latest/download/pget_$(uname -s)_$(uname -m)"
