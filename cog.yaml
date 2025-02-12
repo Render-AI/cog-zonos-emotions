@@ -1,5 +1,8 @@
 build:
   gpu: true
+  system_packages:
+    - espeak-ng
+    - portaudio19-dev
   python_packages:
     - torch>=2.5.1
     - setuptools
@@ -24,7 +27,5 @@ build:
     - pip install flash-attn --no-build-isolation
     - pip install mamba-ssm --no-build-isolation
     - pip install causal-conv1d --no-build-isolation
-  system_packages:
-    - espeak-ng
 predict: predict.py:Predictor
 train: "train.py:train"
