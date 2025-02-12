@@ -7,7 +7,7 @@ from zonos.conditioning import make_cond_dict
 
 class Predictor(BasePredictor):
     def setup(self):
-        # Load a default transformer model
+        # Load the default transformer model from local
         self.current_model_dir = "./models/transformer"
         self.model = Zonos.from_local(
             f"{self.current_model_dir}/config.json",
@@ -61,16 +61,24 @@ class Predictor(BasePredictor):
         Generate speech from text with an optional speaker embedding from audio,
         and an optional emotion vector.
         """
-        # If switching model type, load a new model
-        model_dir = f"./models/{model_type.lower()}"
-        if model_dir != self.current_model_dir:
+        # If switching model type, load appropriate model
+        if model_type == "hybrid" and self.current_model_dir != "hybrid":
+            # Load hybrid model from HuggingFace
+            self.model = Zonos.from_pretrained(
+                repo_id="Zyphra/Zonos-v0.1-hybrid",
+                device="cuda"
+            )
+            self.model.bfloat16()
+            self.current_model_dir = "hybrid"
+        elif model_type == "transformer" and self.current_model_dir != "./models/transformer":
+            # Load transformer model from local
             self.model = Zonos.from_local(
-                f"{model_dir}/config.json",
-                f"{model_dir}/model.safetensors",
+                "./models/transformer/config.json",
+                "./models/transformer/model.safetensors",
                 device="cuda",
             )
             self.model.bfloat16()
-            self.current_model_dir = model_dir
+            self.current_model_dir = "./models/transformer"
 
         # If provided audio, extract speaker embedding
         if audio is not None:
