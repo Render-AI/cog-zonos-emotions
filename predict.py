@@ -6,7 +6,7 @@ from zonos.conditioning import make_cond_dict
 import nltk
 nltk.download('punkt')
 from nltk.tokenize import sent_tokenize
-import pyaudio
+from pydub import AudioSegment
 
 def approximate_phoneme_count(text: str) -> int:
     """
@@ -223,7 +223,7 @@ class Predictor(BasePredictor):
         for chunk_index, chunk_text in enumerate(text_chunks):
             # Create the conditioning dictionary for this chunk
             cond_dict = make_cond_dict(
-                text=text,
+                text=chunk_text,
                 speaker=spk_embedding.to(torch.bfloat16) if spk_embedding is not None else None,
                 language=language,
                 emotion=emotion_tensor,  # If None, make_cond_dict will handle defaults
@@ -239,10 +239,10 @@ class Predictor(BasePredictor):
             wav_files_list.append(out_path)
             torchaudio.save(str(out_path), wavs[0], self.model.autoencoder.sampling_rate)
 
-        # Concatenate all chunks using pyaudio
-        final_wav = pyaudio.AudioSegment.empty()
+        # Concatenate all chunks using pydub
+        final_wav = AudioSegment.empty()
         for wav_file in wav_files_list:
-            wav = pyaudio.AudioSegment.from_wav(wav_file)
+            wav = AudioSegment.from_wav(str(wav_file))
             final_wav += wav
 
         # Save the final concatenated wav
