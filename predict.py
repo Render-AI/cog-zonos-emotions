@@ -6,6 +6,7 @@ from zonos.conditioning import make_cond_dict
 import nltk
 nltk.download('punkt')
 from nltk.tokenize import sent_tokenize
+import pyaudio
 
 def approximate_phoneme_count(text: str) -> int:
     """
@@ -218,33 +219,33 @@ class Predictor(BasePredictor):
         # --------------------------------------
         # Perform generation chunk by chunk
         # --------------------------------------
-        wavs_list = []
+        wav_files_list = []
         for chunk_index, chunk_text in enumerate(text_chunks):
             # Create the conditioning dictionary for this chunk
             cond_dict = make_cond_dict(
-                text=chunk_text,
+                text=text,
                 speaker=spk_embedding.to(torch.bfloat16) if spk_embedding is not None else None,
                 language=language,
-                emotion=emotion_tensor,
-                speaking_rate=speaking_rate,
+                emotion=emotion_tensor,  # If None, make_cond_dict will handle defaults
+                speaking_rate=speaking_rate,  # Add speaking rate to conditioning
             )
             conditioning = self.model.prepare_conditioning(cond_dict)
 
             # Generate codes and decode to waveform
-            print(f"[INFO] Generating chunk {chunk_index+1}/{len(text_chunks)}: '{chunk_text[:60]}...'")
             codes = self.model.generate(conditioning)
-            wav_out = self.model.autoencoder.decode(codes).cpu()
-            # wav_out is shape [1, num_samples], so index [0] to get the single channel
-            wav_out = wav_out.squeeze(0)  # now [num_samples]
-            wavs_list.append(wav_out)
+            wavs = self.model.autoencoder.decode(codes).cpu()
 
-        # Concatenate all chunks
-        final_wav = torch.cat(wavs_list, dim=0)  # shape [total_samples]
+            out_path = Path(f"sample_{chunk_index}.wav")
+            wav_files_list.append(out_path)
+            torchaudio.save(str(out_path), wavs[0], self.model.autoencoder.sampling_rate)
 
-        # (IMPORTANT FIX) Now make it [1, total_samples] for torchaudio
-        final_wav = final_wav.unsqueeze(0)  # shape [1, total_samples]
+        # Concatenate all chunks using pyaudio
+        final_wav = pyaudio.AudioSegment.empty()
+        for wav_file in wav_files_list:
+            wav = pyaudio.AudioSegment.from_wav(wav_file)
+            final_wav += wav
 
-        out_path = Path("sample.wav")
-        torchaudio.save(str(out_path), final_wav, self.model.autoencoder.sampling_rate)
+        # Save the final concatenated wav
+        final_wav.export("output.wav", format="wav")
 
-        return out_path
+        return "output.wav"
