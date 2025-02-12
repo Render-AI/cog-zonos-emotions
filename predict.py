@@ -235,11 +235,16 @@ class Predictor(BasePredictor):
             codes = self.model.generate(conditioning)
             wav_out = self.model.autoencoder.decode(codes).cpu()
             # wav_out is shape [1, num_samples], so index [0] to get the single channel
-            wavs_list.append(wav_out[0])
+            wav_out = wav_out.squeeze(0)  # now [num_samples]
+            wavs_list.append(wav_out)
 
         # Concatenate all chunks
-        final_wav = torch.cat(wavs_list, dim=-1)
+        final_wav = torch.cat(wavs_list, dim=0)  # shape [total_samples]
+
+        # (IMPORTANT FIX) Now make it [1, total_samples] for torchaudio
+        final_wav = final_wav.unsqueeze(0)  # shape [1, total_samples]
+
         out_path = Path("sample.wav")
-        torchaudio.save(str(out_path), final_wav.unsqueeze(0), self.model.autoencoder.sampling_rate)
+        torchaudio.save(str(out_path), final_wav, self.model.autoencoder.sampling_rate)
 
         return out_path
