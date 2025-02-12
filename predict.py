@@ -3,7 +3,87 @@ import torch
 import torchaudio
 from zonos.model import Zonos
 from zonos.conditioning import make_cond_dict
+import nltk
+nltk.download('punkt')
+from nltk.tokenize import sent_tokenize
 
+def approximate_phoneme_count(text: str) -> int:
+    """
+    A very rough approximation that assumes character count ~ phoneme count.
+    Feel free to adjust as needed or implement a more sophisticated method.
+    """
+    return len(text)
+
+def group_sentences(text, max_length=400):
+    """
+    Provided splitting logic, with minor edits to ensure it runs in this script.
+    Splits text into chunks that do not exceed max_length. 
+    """
+    sentences = sent_tokenize(text)
+
+    # Debug: print the length of the longest sentence
+    print(f"Longest sentence: {max([len(sent) for sent in sentences]) if sentences else 0}")
+
+    # While biggest sentence is bigger than max_length, try splitting by periods, then by commas
+    while sentences and max([len(sent) for sent in sentences]) > max_length:
+        max_sent = max(sentences, key=len)
+        max_idx = sentences.index(max_sent)
+
+        sentences_before = sentences[:max_idx]
+        sentences_after = sentences[max_idx+1:]
+        
+        new_sentences = max_sent.split(".")
+        new_sentences = [sent.strip() for sent in new_sentences if sent.strip() != ""]
+        
+        # check if a split sentence is still too big
+        if new_sentences and max([len(sent) for sent in new_sentences]) > max_length:
+            biggest_new_sent = max(new_sentences, key=len)
+            bn_idx = new_sentences.index(biggest_new_sent)
+            new_senteces_before = new_sentences[:bn_idx]
+            new_senteces_after = new_sentences[bn_idx+1:]
+
+            new_sentence_parts = biggest_new_sent.split(",")
+            new_sentence_parts = [sent.strip() for sent in new_sentence_parts if sent.strip() != ""]
+            new_sentences = new_senteces_before + new_sentence_parts + new_senteces_after
+        
+        sentences = sentences_before + new_sentences + sentences_after
+
+    # Debug: print the length of the longest sentence after splitting
+    if sentences:
+        print(f"Longest sentence after split: {max([len(sent) for sent in sentences])}")
+
+    # Merge sentences until we can't merge further without exceeding max_length
+    while True:
+        if len(sentences) <= 1:
+            break
+
+        # Find the shortest sentence
+        min_index = min(range(len(sentences)), key=lambda i: len(sentences[i]))
+        min_length = len(sentences[min_index])
+
+        # Determine the nearest neighbor that is shorter (or equally short)
+        if min_index == 0:
+            next_index = min_index + 1
+        elif min_index == len(sentences) - 1:
+            next_index = min_index - 1
+        else:
+            left_length = len(sentences[min_index - 1])
+            right_length = len(sentences[min_index + 1])
+            next_index = (min_index - 1) if left_length <= right_length else (min_index + 1)
+
+        # Check if merging would exceed the maximum length
+        if min_length + len(sentences[next_index]) + 1 > max_length:
+            break
+
+        # Merge sentences
+        if next_index > min_index:
+            sentences[min_index] = f"{sentences[min_index]} {sentences[next_index]}"
+            del sentences[next_index]
+        else:
+            sentences[next_index] = f"{sentences[next_index]} {sentences[min_index]}"
+            del sentences[min_index]
+
+    return sentences
 
 class Predictor(BasePredictor):
     def setup(self):
@@ -59,11 +139,13 @@ class Predictor(BasePredictor):
     ) -> Path:
         """
         Generate speech from text with an optional speaker embedding from audio,
-        and an optional emotion vector.
+        and an optional emotion vector. Now includes logic to split text into multiple
+        chunks if we exceed the maximum recommended generation length based on
+        speaking_rate and reference audio length (up to 30 seconds).
         """
+
         # If switching model type, load appropriate model
         if model_type == "hybrid" and self.current_model_dir != "hybrid":
-            # Load hybrid model from HuggingFace
             self.model = Zonos.from_pretrained(
                 repo_id="Zyphra/Zonos-v0.1-hybrid",
                 device="cuda"
@@ -71,7 +153,6 @@ class Predictor(BasePredictor):
             self.model.bfloat16()
             self.current_model_dir = "hybrid"
         elif model_type == "transformer" and self.current_model_dir != "./models/transformer":
-            # Load transformer model from local
             self.model = Zonos.from_local(
                 "./models/transformer/config.json",
                 "./models/transformer/model.safetensors",
@@ -80,49 +161,85 @@ class Predictor(BasePredictor):
             self.model.bfloat16()
             self.current_model_dir = "./models/transformer"
 
-        # If provided audio, extract speaker embedding
+        # If provided audio, extract speaker embedding and set reference length
+        ref_seconds = 30.0
+        spk_embedding = None
         if audio is not None:
             wav, sampling_rate = torchaudio.load(audio)
             spk_embedding = self.model.make_speaker_embedding(wav, sampling_rate)
-        else:
-            spk_embedding = None
+            # Make sure we don't exceed the 30s limit
+            possible_ref_seconds = wav.size(-1) / sampling_rate
+            if possible_ref_seconds < ref_seconds:
+                ref_seconds = possible_ref_seconds
 
         # Parse custom emotion vector if given
         emotion_tensor = None
         if emotion.strip():
             try:
-                # e.g. "0.5,0.1,0.0,0.0,0.3,0.1,0.0,0.0"
                 emo_vals = [float(x.strip()) for x in emotion.split(",")]
                 if len(emo_vals) != 8:
                     raise ValueError("Emotion must be exactly 8 floats.")
-                # Convert to a [1 x 8] (or [1, 8]) which make_cond_dict then unsqueezes further
                 emotion_tensor = torch.tensor([emo_vals], dtype=torch.float32, device="cuda").bfloat16()
             except Exception as e:
                 print(f"[WARN] Could not parse emotion vector: {e}")
                 emotion_tensor = None
 
-        # Create the conditioning dictionary
+        # Seed
         if seed:
             torch.manual_seed(seed)
         else:
-            # Generate random seed for reproducibility
             seed = torch.randint(0, 2**32 - 1, (1,)).item()
             torch.manual_seed(seed)
             print(f"Using random seed: {seed}")
 
-        cond_dict = make_cond_dict(
-            text=text,
-            speaker=spk_embedding.to(torch.bfloat16) if spk_embedding is not None else None,
-            language=language,
-            emotion=emotion_tensor,  # If None, make_cond_dict will handle defaults
-            speaking_rate=speaking_rate,  # Add speaking rate to conditioning
-        )
-        conditioning = self.model.prepare_conditioning(cond_dict)
+        # --------------------------------------
+        # Split text if it exceeds max phonemes
+        # --------------------------------------
+        # Roughly estimate how many phonemes we can fit given the reference (or default) length
+        # and the user-provided speaking_rate
+        max_phonemes = int(ref_seconds * speaking_rate)
+        total_phonemes_estimate = approximate_phoneme_count(text)
 
-        # Generate codes and decode to waveform
-        codes = self.model.generate(conditioning)
-        wavs = self.model.autoencoder.decode(codes).cpu()
+        # We'll do splitting only if total phonemes exceed the max recommended
+        if total_phonemes_estimate > max_phonemes:
+            # Convert that phoneme fraction to a proportional max_length for text splitting
+            ratio = max_phonemes / float(total_phonemes_estimate)
+            chunk_char_length = max(50, int(len(text) * ratio))
+            print(
+                f"Text likely too long ({total_phonemes_estimate} phonemes) for "
+                f"{ref_seconds:.2f}s reference at {speaking_rate} phonemes/s. "
+                f"Splitting into chunks of ~{chunk_char_length} characters."
+            )
 
+            text_chunks = group_sentences(text, max_length=chunk_char_length)
+        else:
+            text_chunks = [text]
+
+        # --------------------------------------
+        # Perform generation chunk by chunk
+        # --------------------------------------
+        wavs_list = []
+        for chunk_index, chunk_text in enumerate(text_chunks):
+            # Create the conditioning dictionary for this chunk
+            cond_dict = make_cond_dict(
+                text=chunk_text,
+                speaker=spk_embedding.to(torch.bfloat16) if spk_embedding is not None else None,
+                language=language,
+                emotion=emotion_tensor,
+                speaking_rate=speaking_rate,
+            )
+            conditioning = self.model.prepare_conditioning(cond_dict)
+
+            # Generate codes and decode to waveform
+            print(f"[INFO] Generating chunk {chunk_index+1}/{len(text_chunks)}: '{chunk_text[:60]}...'")
+            codes = self.model.generate(conditioning)
+            wav_out = self.model.autoencoder.decode(codes).cpu()
+            # wav_out is shape [1, num_samples], so index [0] to get the single channel
+            wavs_list.append(wav_out[0])
+
+        # Concatenate all chunks
+        final_wav = torch.cat(wavs_list, dim=-1)
         out_path = Path("sample.wav")
-        torchaudio.save(str(out_path), wavs[0], self.model.autoencoder.sampling_rate)
+        torchaudio.save(str(out_path), final_wav.unsqueeze(0), self.model.autoencoder.sampling_rate)
+
         return out_path
