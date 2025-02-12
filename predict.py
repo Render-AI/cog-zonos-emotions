@@ -168,10 +168,7 @@ class Predictor(BasePredictor):
         if audio is not None:
             wav, sampling_rate = torchaudio.load(audio)
             spk_embedding = self.model.make_speaker_embedding(wav, sampling_rate)
-            # Make sure we don't exceed the 30s limit
-            possible_ref_seconds = wav.size(-1) / sampling_rate
-            if possible_ref_seconds < ref_seconds:
-                ref_seconds = possible_ref_seconds
+            ref_seconds = wav.size(-1) / sampling_rate
 
         # Parse custom emotion vector if given
         emotion_tensor = None
@@ -214,6 +211,7 @@ class Predictor(BasePredictor):
 
             text_chunks = group_sentences(text, max_length=chunk_char_length)
         else:
+            print(f"Text is short enough ({total_phonemes_estimate} phonemes) for {ref_seconds:.2f}s reference at {speaking_rate} phonemes/s.")
             text_chunks = [text]
 
         # --------------------------------------
@@ -235,17 +233,21 @@ class Predictor(BasePredictor):
             codes = self.model.generate(conditioning)
             wavs = self.model.autoencoder.decode(codes).cpu()
 
-            out_path = Path(f"sample_{chunk_index}.wav")
+            out_path = f"sample_{chunk_index}.wav"
             wav_files_list.append(out_path)
-            torchaudio.save(str(out_path), wavs[0], self.model.autoencoder.sampling_rate)
+            torchaudio.save(out_path, wavs[0], self.model.autoencoder.sampling_rate)
 
-        # Concatenate all chunks using pydub
-        final_wav = AudioSegment.empty()
-        for wav_file in wav_files_list:
-            wav = AudioSegment.from_wav(str(wav_file))
-            final_wav += wav
+        print(f"Concatenating {len(wav_files_list)} chunks: {wav_files_list}")
+        try:
+            # Concatenate all chunks using pydub
+            final_wav = AudioSegment.empty()
+            for wav_file in wav_files_list:
+                wav = AudioSegment.from_wav(str(wav_file))
+                final_wav += wav
 
-        # Save the final concatenated wav
-        final_wav.export("output.wav", format="wav")
-
-        return "output.wav"
+            # Save the final concatenated wav
+            final_wav.export("output.wav", format="wav")
+            return "output.wav"
+        except Exception as e:
+            print(f"Error processing audio files: {str(e)}")
+            return None
