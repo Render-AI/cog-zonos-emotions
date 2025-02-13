@@ -237,7 +237,7 @@ class Predictor(BasePredictor):
             out_path = f"sample_{chunk_index}.wav"
             wav_files_list.append(out_path)
             torchaudio.save(out_path, wavs[0], self.model.autoencoder.sampling_rate)
-            return out_path
+            return Path(out_path)
 
         print(f"Concatenating {len(wav_files_list)} chunks: {wav_files_list}")
         try:
