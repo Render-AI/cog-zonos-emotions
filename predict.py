@@ -8,6 +8,7 @@ nltk.download('punkt')
 nltk.download('punkt_tab')
 from nltk.tokenize import sent_tokenize
 from pydub import AudioSegment
+import re
 
 def approximate_phoneme_count(text: str) -> int:
     """
