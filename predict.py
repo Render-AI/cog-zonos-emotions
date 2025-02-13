@@ -220,12 +220,13 @@ class Predictor(BasePredictor):
         wav_files_list = []
         for chunk_index, chunk_text in enumerate(text_chunks):
             # Create the conditioning dictionary for this chunk
+            print(f"Doing inference for chunk {chunk_index+1}/{len(text_chunks)}: {chunk_text}")
             cond_dict = make_cond_dict(
                 text=chunk_text,
                 speaker=spk_embedding.to(torch.bfloat16) if spk_embedding is not None else None,
                 language=language,
                 emotion=emotion_tensor,  # If None, make_cond_dict will handle defaults
-                speaking_rate=speaking_rate,  # Add speaking rate to conditioning
+                speaking_rate=float(speaking_rate),  # Add speaking rate to conditioning
             )
             conditioning = self.model.prepare_conditioning(cond_dict)
 
@@ -243,10 +244,16 @@ class Predictor(BasePredictor):
             final_wav = AudioSegment.empty()
             for wav_file in wav_files_list:
                 wav = AudioSegment.from_wav(str(wav_file))
+                # test if file is broken or empty
+                if wav.dBFS < -16 or len(wav) == 0:
+                    print(f"Chunk {wav_file} is broken, skipping")
+                    continue
+                print(f"Adding chunk {wav_file} to final wav")
                 final_wav += wav
 
             # Save the final concatenated wav
             final_wav.export("output.wav", format="wav")
+            print(f"Saved final wav to output.wav")
             return "output.wav"
         except Exception as e:
             print(f"Error processing audio files: {str(e)}")
