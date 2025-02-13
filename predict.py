@@ -244,10 +244,6 @@ class Predictor(BasePredictor):
             final_wav = AudioSegment.empty()
             for wav_file in wav_files_list:
                 wav = AudioSegment.from_wav(str(wav_file))
-                # test if file is broken or empty
-                if wav.dBFS < -16 or len(wav) == 0:
-                    print(f"Chunk {wav_file} is broken, skipping")
-                    continue
                 print(f"Adding chunk {wav_file} to final wav")
                 final_wav += wav
 
