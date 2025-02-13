@@ -263,7 +263,7 @@ class Predictor(BasePredictor):
         # --------------------------------------
         # Perform generation chunk by chunk
         # --------------------------------------
-        wav_files_list = []
+        chunks_info = []  # Store (filepath, text) tuples
         for chunk_index, chunk_text in enumerate(text_chunks):
             # Create the conditioning dictionary for this chunk
             print(f"Doing inference for chunk {chunk_index+1}/{len(text_chunks)}: {chunk_text}")
@@ -281,17 +281,31 @@ class Predictor(BasePredictor):
             wavs = self.model.autoencoder.decode(codes).cpu()
 
             out_path = f"sample_{chunk_index}.wav"
-            wav_files_list.append(out_path)
+            chunks_info.append((out_path, chunk_text))
             torchaudio.save(out_path, wavs[0], self.model.autoencoder.sampling_rate)
 
-        print(f"Concatenating {len(wav_files_list)} chunks: {wav_files_list}")
+        print(f"Concatenating {len(chunks_info)} chunks")
         try:
-            # Concatenate all chunks using pydub
+            # Concatenate all chunks using pydub with pauses
             final_wav = AudioSegment.empty()
-            for wav_file in wav_files_list:
+            for i, (wav_file, chunk_text) in enumerate(chunks_info):
                 wav = AudioSegment.from_wav(str(wav_file))
-                print(f"Adding chunk {wav_file} to final wav")
                 final_wav += wav
+                
+                # Add pause if not the last chunk
+                if i < len(chunks_info) - 1:
+                    # Determine pause duration based on last non-whitespace character
+                    stripped_text = chunk_text.strip()
+                    last_char = stripped_text[-1] if stripped_text else ''
+                    
+                    if last_char == '.':
+                        pause_duration = 1000  # 1 second
+                    elif last_char == ',':
+                        pause_duration = 500   # 0.5 seconds
+                    else:
+                        pause_duration = 500   # Default to 0.5 seconds
+                    
+                    final_wav += AudioSegment.silent(duration=pause_duration)
 
             # Save the final concatenated wav
             final_wav.export("output.wav", format="wav")
