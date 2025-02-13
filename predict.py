@@ -5,6 +5,7 @@ from zonos.model import Zonos
 from zonos.conditioning import make_cond_dict
 import nltk
 nltk.download('punkt')
+nltk.download('punkt_tab')
 from nltk.tokenize import sent_tokenize
 from pydub import AudioSegment
 
