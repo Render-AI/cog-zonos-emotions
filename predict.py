@@ -237,7 +237,6 @@ class Predictor(BasePredictor):
             out_path = f"sample_{chunk_index}.wav"
             wav_files_list.append(out_path)
             torchaudio.save(out_path, wavs[0], self.model.autoencoder.sampling_rate)
-            return Path(out_path)
 
         print(f"Concatenating {len(wav_files_list)} chunks: {wav_files_list}")
         try:
@@ -255,7 +254,7 @@ class Predictor(BasePredictor):
             # Save the final concatenated wav
             final_wav.export("output.wav", format="wav")
             print(f"Saved final wav to output.wav")
-            return "output.wav"
+            return Path("output.wav")
         except Exception as e:
             print(f"Error processing audio files: {str(e)}")
             return None
